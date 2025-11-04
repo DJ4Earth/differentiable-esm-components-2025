@@ -1,7 +1,7 @@
 # This will run a data assimilation experiment where we tune the initial condition
 # based on data
 
-mutable struct InitCondModel2{T, S} <: AbstractNLPModel{T, S}
+mutable struct InitCondModel{T, S} <: AbstractNLPModel{T, S}
     meta::NLPModelMeta{T,S}
     counters::Counters
     S::ShallowWaters.ModelSetup{T,T}        # model structure
@@ -15,7 +15,7 @@ mutable struct InitCondModel2{T, S} <: AbstractNLPModel{T, S}
     t::Int64                                # model time
 end
 
-function cpintegrate2(chkp, scheme)::Float64
+function cpintegrate(chkp, scheme)::Float64
 
     # calculate layer thicknesses for initial conditions
     ShallowWaters.thickness!(chkp.S.Diag.VolumeFluxes.h, chkp.S.Prog.η, chkp.S.forcing.H)
@@ -43,7 +43,7 @@ function cpintegrate2(chkp, scheme)::Float64
     chkp.j = 1
     @ad_checkpoint scheme for chkp.i = 1:chkp.S.grid.nt
 
-        t = chkp.S.t
+        t = chkp.t
         i = chkp.i
 
         # ghost point copy for boundary conditions
@@ -211,7 +211,7 @@ function cpintegrate2(chkp, scheme)::Float64
 
 end
 
-function integrate2(chkp)::Float64
+function integrate(chkp)::Float64
 
     # calculate layer thicknesses for initial conditions
     ShallowWaters.thickness!(chkp.S.Diag.VolumeFluxes.h, chkp.S.Prog.η, chkp.S.forcing.H)
@@ -239,7 +239,7 @@ function integrate2(chkp)::Float64
     chkp.j = 1
     for chkp.i = 1:chkp.S.grid.nt
 
-        t = chkp.S.t
+        t = chkp.t
         i = chkp.i
 
         # ghost point copy for boundary conditions
@@ -383,6 +383,10 @@ function integrate2(chkp)::Float64
     v0rhs = chkp.S.Diag.PrognosticVarsRHS.v .= chkp.S.Diag.RungeKutta.v0
     ShallowWaters.tracer!(i, u0rhs, v0rhs, chkp.S.Prog, chkp.S.Diag, chkp.S)
 
+    # if i === 1
+        
+    # end
+
     if i in chkp.data_steps
         temp = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(
             chkp.S.Prog.u,
@@ -395,6 +399,7 @@ function integrate2(chkp)::Float64
         tempuveta = [vec(temp.u); vec(temp.v); vec(temp.η)]
         chkp.J += sum((tempuveta - chkp.data[:, chkp.j]).^2)
 
+        println("Cost value: ", sum((tempuveta - chkp.data[:, chkp.j]).^2))
         chkp.j += 1
     end
 
@@ -407,7 +412,7 @@ function integrate2(chkp)::Float64
 
 end
 
-function InitCondModel2{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
+function InitCondModel{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
 
     P_true = ShallowWaters.Parameter(T=Float64,
         output=false,
@@ -465,7 +470,7 @@ function InitCondModel2{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
     vdata = ncread("./128_postspinup_1year_noslipbc_epsetup/v.nc", "v")
     etadata = ncread("./128_postspinup_1year_noslipbc_epsetup/eta.nc", "eta")
 
-    data = zeros(128*127*2 + 128*128, Ndays)
+    data = zeros(128*127*2 + 128^2, Ndays)
     for j = 2:Ndays+1
         data[:,j-1] .= [vec(udata[:,:,j]); vec(vdata[:,:,j]); vec(etadata[:,:,j])]
     end
@@ -534,21 +539,21 @@ function InitCondModel2{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
     println("norm of predicted - true v ", norm(S_pred.Prog.v - S_true.Prog.v))
     println("norm of predicted - true eta ", norm(S_pred.Prog.η - S_true.Prog.η))
 
-    param_guess = [vec(Prog_pred.u);vec(Prog_pred.v)]#;vec(etaic)]
+    param_guess = [vec(uic);vec(vic)]#;vec(etaic)]
 
     meta = NLPModelMeta(length(param_guess);ncon=0,nnzh=0,x0=param_guess)
 
-    return InitCondModel2{T, typeof(param_guess)}(meta, Counters(), S_pred, zeros(size(Prog_pred.u)), zeros(size(Prog_pred.v)), 0.0, data, data_steps, 1, 1, 0.0)
+    return InitCondModel{T, typeof(param_guess)}(meta, Counters(), S_pred, zeros(size(Prog_pred.u)), zeros(size(Prog_pred.v)), 0.0, data, data_steps, 1, 1, 0.0)
 
 end
 
 function NLPModels.obj(model, param_guess)
 
-    halo = model.S.grid.halo
-    scale_inv = model.S.constants.scale_inv
-    scale = model.S.constants.scale
-    nuy = model.S.grid.nuy
-    nvx = model.S.grid.nvx
+    # halo = model.S.grid.halo
+    # scale_inv = model.S.constants.scale_inv
+    # scale = model.S.constants.scale
+    # nuy = model.S.grid.nuy
+    # nvx = model.S.grid.nvx
 
     P_temp = ShallowWaters.Parameter(T=Float64;output=false,
         L_ratio=1,
@@ -575,22 +580,13 @@ function NLPModels.obj(model, param_guess)
     model.t = 0.0
     model.j = 1
 
-    Prog = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(model.S.Prog.u,
-        model.S.Prog.v,
-        model.S.Prog.η,
-        model.S.Prog.sst,
-        model.S)...
-    )
+    # modifying initial condition with the halo
     current = 1
-    for m in (Prog.u, Prog.v)#, model.S.Prog.η)
+    for m in (model.S.Prog.u, model.S.Prog.v)#model.S.Prog.η)
         sz = prod(size(m))
         m .= reshape(param_guess[current:(current + sz - 1)], size(m)...)
         current += sz
     end
-    umodified,vmodified,_,_ = ShallowWaters.add_halo(Prog.u,Prog.v,Prog.η,Prog.sst,model.S)
-
-    model.S.Prog.u .= umodified
-    model.S.Prog.v .= vmodified
 
     # modifying initial condition without the halo
     # model.u_nohalo .= scale_inv*model.S.Prog.u[halo+1:end-halo,halo+1:end-halo]
@@ -606,17 +602,11 @@ function NLPModels.obj(model, param_guess)
     # model.S.Prog.u .= scale*(cat(zeros(P_temp.T,halo,nuy+2*halo),cat(-model.u_nohalo[:,[2,1]], model.u_nohalo,-model.u_nohalo[:,[end, end-1]],dims=2),zeros(P_temp.T,halo,nuy+2*halo),dims=1))
     # model.S.Prog.v .= scale*(cat(zeros(P_temp.T,nvx+2*halo,halo),cat(-model.v_nohalo[[2; 1],:],model.v_nohalo,-model.v_nohalo[[end; end-1],:],dims=1),zeros(P_temp.T,nvx+2*halo,halo),dims=2))
 
-    return integrate2(model)
+    return integrate(model)
 
 end
 
 function NLPModels.grad!(model, param_guess, G)
-
-    halo = model.S.grid.halo
-    scale_inv = model.S.constants.scale_inv
-    scale = model.S.constants.scale
-    nuy = model.S.grid.nuy
-    nvx = model.S.grid.nvx
 
     P_temp = ShallowWaters.Parameter(T=Float64;output=false,
         L_ratio=1,
@@ -651,70 +641,67 @@ function NLPModels.grad!(model, param_guess, G)
         write_checkpoints=false
     )
 
-    Prog = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(model.S.Prog.u,
-        model.S.Prog.v,
-        model.S.Prog.η,
-        model.S.Prog.sst,
-        model.S)...
-    )
     current = 1
-    for m in (Prog.u, Prog.v)#, model.S.Prog.η)
+    for m in (model.S.Prog.u, model.S.Prog.v)#model.S.Prog.η)
         sz = prod(size(m))
         m .= reshape(param_guess[current:(current + sz - 1)], size(m)...)
         current += sz
     end
-    umodified,vmodified,_,_ = ShallowWaters.add_halo(Prog.u,Prog.v,Prog.η,Prog.sst,model.S)
 
-    model.S.Prog.u .= umodified
-    model.S.Prog.v .= vmodified
+    # modifying initial condition without the halo
+    # model.u_nohalo .= scale_inv*model.S.Prog.u[halo+1:end-halo,halo+1:end-halo]
+    # model.v_nohalo .= scale_inv*model.S.Prog.v[halo+1:end-halo,halo+1:end-halo]
+    # current = 1
+    # for m in (model.u_nohalo, model.v_nohalo)#, model.S.Prog.η)
+    #     sz = prod(size(m))
+    #     m .= reshape(param_guess[current:(current + sz - 1)], size(m)...)
+    #     current += sz
+    # end
+
+    # # add halo back for integrating
+    # model.S.Prog.u .= scale*(cat(zeros(P_temp.T,halo,nuy+2*halo),cat(-model.u_nohalo[:,[2,1]], model.u_nohalo,-model.u_nohalo[:,[end, end-1]],dims=2),zeros(P_temp.T,halo,nuy+2*halo),dims=1))
+    # model.S.Prog.v .= scale*(cat(zeros(P_temp.T,nvx+2*halo,halo),cat(-model.v_nohalo[[2; 1],:],model.v_nohalo,-model.v_nohalo[[end; end-1],:],dims=1),zeros(P_temp.T,nvx+2*halo,halo),dims=2))
 
     dmodel = Enzyme.make_zero(model)
 
     J = autodiff(
         set_runtime_activity(Enzyme.ReverseWithPrimal),
-        cpintegrate2,
+        cpintegrate,
         Active,
         Duplicated(model, dmodel),
         Const(revolve)
     )[2]
 
-    dProg = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(dmodel.S.Prog.u,
-        dmodel.S.Prog.v,
-        dmodel.S.Prog.η,
-        dmodel.S.Prog.sst,
-        model.S)...
-    )
-
-    G .= [vec(dProg.u); vec(dProg.v)]#; vec(dmodel.S.Prog.η)]
+    G .= [vec(dmodel.S.Prog.u); vec(dmodel.S.Prog.v)]#; vec(dmodel.S.Prog.η)]
 
     return nothing
 
 end
 
-function compute_initcond_newoptimizer2()
+function compute_initcond_newoptimizer()
 
     Ndays = 10
-    sigma = 0.07
-    nlp = InitCondModel2{Float64}(Ndays, sigma)
+    sigma = 0.001
+    nlp = InitCondModel{Float64}(Ndays, sigma)
     qn_options = MadNLP.QuasiNewtonOptions(; max_history=100)
     results = madnlp(
         nlp;
         # linear_solver=LapackCPUSolver,
         hessian_approximation=MadNLP.CompactLBFGS,
         quasi_newton_options=qn_options,
-        max_iter=200,
-        acceptable_tol=1e-7,
-        tol=1e-7
+        max_iter=20,
+        acceptable_tol=1e-3,
+        tol=1e-4
     )
 
     return results
 
 end
 
-function ignore2(result)
+function ignore(result)
 
     Ndays = 10
-    sigma_initcond = 0.07
+    sigma_initcond = 0.1
 
     P_true = ShallowWaters.Parameter(T=Float64,
         output=false,
@@ -768,7 +755,7 @@ function ignore2(result)
     vdata = ncread("./128_postspinup_1year_noslipbc_epsetup/v.nc", "v")
     etadata = ncread("./128_postspinup_1year_noslipbc_epsetup/eta.nc", "eta")
 
-    data = zeros(128*127*2, Ndays)# + 128*128, Ndays)
+    data = zeros(128*127*2, Ndays)
     for j = 2:Ndays+1
         data[:,j-1] .= [vec(udata[:,:,j]); vec(vdata[:,:,j])]#; vec(etadata[:,:,j])]
     end
@@ -848,27 +835,29 @@ function ignore2(result)
         α=2,
         nx=128,
         Ndays=Ndays,
-        initial_cond="rest"
-    )
+        initial_cond="ncfile",
+        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        init_starti=1
+    );
 
-    S_nlp = ShallowWaters.model_setup(P_temp)
+    S_nlp = ShallowWaters.model_setup(P_temp);
 
-    Prog = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(S_nlp.Prog.u,
-        S_nlp.Prog.v,
-        S_nlp.Prog.η,
-        S_nlp.Prog.sst,
-        S_nlp)...
-    )
     current = 1
-    for m in (Prog.u, Prog.v)#, model.S.Prog.η)
+    for m in (S_nlp.Prog.u, S_nlp.Prog.v)#S_nlp.Prog.η)
         sz = prod(size(m))
         m .= reshape(result.solution[current:(current + sz - 1)], size(m)...)
         current += sz
     end
-    umodified,vmodified,_ = ShallowWaters.add_halo(Prog.u,Prog.v,Prog.η,Prog.sst,S_nlp)
 
-    S_nlp.Prog.u .= umodified
-    S_nlp.Prog.v .= vmodified
+    # Prog = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(S_nlp.Prog.u,
+    #     S_nlp.Prog.v,
+    #     S_nlp.Prog.η,
+    #     S_nlp.Prog.sst,
+    #     S_nlp)...
+    # )
+    # umodified,vmodified,_,_ = ShallowWaters.add_halo(Prog.u,Prog.v,Prog.η,Prog.sst,S_nlp)
+    # S_nlp.Prog.u = umodified
+    # S_nlp.Prog.v = vmodified
 
     Prog_nlp = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(S_nlp.Prog.u,
         S_nlp.Prog.v,
@@ -887,6 +876,14 @@ function ignore2(result)
     Prog_true10 = ShallowWaters.time_integration(S_true)
     Prog_pred10 = ShallowWaters.time_integration(S_pred)
     Prog_nlp10 = ShallowWaters.time_integration(S_nlp)
+
+    # nlp_pred = InitCondModel{Float64}(Ndays, sigma_initcond);
+    # nlp_opt = InitCondModel{Float64}(Ndays, sigma_initcond);
+
+    # nlp_opt.S = S_nlp;
+
+    # integrate(nlp_pred)
+    # integrate(nlp_opt)
 
     return Prog_true, Prog_pred, Prog_nlp, upert, vpert, etapert, Prog_true10, Prog_pred10, Prog_nlp10
 

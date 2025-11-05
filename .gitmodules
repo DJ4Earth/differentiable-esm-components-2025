@@ -1,0 +1,4 @@
+[submodule "re-entrant-channel-model"]
+	path = re-entrant-channel-model
+	url = https://github.com/PRONTOLab/GB-25.git
+	branch = jlk9/DJ4Earth-2025-repo

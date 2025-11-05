@@ -431,7 +431,7 @@ function InitCondModel{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -458,7 +458,7 @@ function InitCondModel{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -466,9 +466,9 @@ function InitCondModel{T}(Ndays,sigma_initcond) where {T<:AbstractFloat}
 
     data_steps = 225:224:Ndays*225
 
-    udata = ncread("./128_postspinup_1year_noslipbc_epsetup/u.nc", "u")
-    vdata = ncread("./128_postspinup_1year_noslipbc_epsetup/v.nc", "v")
-    etadata = ncread("./128_postspinup_1year_noslipbc_epsetup/eta.nc", "eta")
+    udata = ncread("./128_postspinup_20days_noslipbc_epsetup/u.nc", "u")
+    vdata = ncread("./128_postspinup_20days_noslipbc_epsetup/v.nc", "v")
+    etadata = ncread("./128_postspinup_20days_noslipbc_epsetup/eta.nc", "eta")
 
     data = zeros(128*127*2 + 128^2, Ndays)
     for j = 2:Ndays+1
@@ -571,7 +571,7 @@ function NLPModels.obj(model, param_guess)
         nx=128,
         Ndays=model.S.parameters.Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -587,20 +587,6 @@ function NLPModels.obj(model, param_guess)
         m .= reshape(param_guess[current:(current + sz - 1)], size(m)...)
         current += sz
     end
-
-    # modifying initial condition without the halo
-    # model.u_nohalo .= scale_inv*model.S.Prog.u[halo+1:end-halo,halo+1:end-halo]
-    # model.v_nohalo .= scale_inv*model.S.Prog.v[halo+1:end-halo,halo+1:end-halo]
-    # current = 1
-    # for m in (model.u_nohalo, model.v_nohalo)#, model.S.Prog.η)
-    #     sz = prod(size(m))
-    #     m .= reshape(param_guess[current:(current + sz - 1)], size(m)...)
-    #     current += sz
-    # end
-
-    # # add halo back for integrating
-    # model.S.Prog.u .= scale*(cat(zeros(P_temp.T,halo,nuy+2*halo),cat(-model.u_nohalo[:,[2,1]], model.u_nohalo,-model.u_nohalo[:,[end, end-1]],dims=2),zeros(P_temp.T,halo,nuy+2*halo),dims=1))
-    # model.S.Prog.v .= scale*(cat(zeros(P_temp.T,nvx+2*halo,halo),cat(-model.v_nohalo[[2; 1],:],model.v_nohalo,-model.v_nohalo[[end; end-1],:],dims=1),zeros(P_temp.T,nvx+2*halo,halo),dims=2))
 
     return integrate(model)
 
@@ -624,7 +610,7 @@ function NLPModels.grad!(model, param_guess, G)
         nx=128,
         Ndays=model.S.parameters.Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -648,20 +634,6 @@ function NLPModels.grad!(model, param_guess, G)
         current += sz
     end
 
-    # modifying initial condition without the halo
-    # model.u_nohalo .= scale_inv*model.S.Prog.u[halo+1:end-halo,halo+1:end-halo]
-    # model.v_nohalo .= scale_inv*model.S.Prog.v[halo+1:end-halo,halo+1:end-halo]
-    # current = 1
-    # for m in (model.u_nohalo, model.v_nohalo)#, model.S.Prog.η)
-    #     sz = prod(size(m))
-    #     m .= reshape(param_guess[current:(current + sz - 1)], size(m)...)
-    #     current += sz
-    # end
-
-    # # add halo back for integrating
-    # model.S.Prog.u .= scale*(cat(zeros(P_temp.T,halo,nuy+2*halo),cat(-model.u_nohalo[:,[2,1]], model.u_nohalo,-model.u_nohalo[:,[end, end-1]],dims=2),zeros(P_temp.T,halo,nuy+2*halo),dims=1))
-    # model.S.Prog.v .= scale*(cat(zeros(P_temp.T,nvx+2*halo,halo),cat(-model.v_nohalo[[2; 1],:],model.v_nohalo,-model.v_nohalo[[end; end-1],:],dims=1),zeros(P_temp.T,nvx+2*halo,halo),dims=2))
-
     dmodel = Enzyme.make_zero(model)
 
     J = autodiff(
@@ -681,7 +653,7 @@ end
 function compute_initcond_newoptimizer()
 
     Ndays = 10
-    sigma = 0.001
+    sigma = 0.1
     nlp = InitCondModel{Float64}(Ndays, sigma)
     qn_options = MadNLP.QuasiNewtonOptions(; max_history=100)
     results = madnlp(
@@ -720,7 +692,7 @@ function ignore(result)
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -743,7 +715,7 @@ function ignore(result)
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -751,9 +723,9 @@ function ignore(result)
 
     data_steps = 225:224:Ndays*225
 
-    udata = ncread("./128_postspinup_1year_noslipbc_epsetup/u.nc", "u")
-    vdata = ncread("./128_postspinup_1year_noslipbc_epsetup/v.nc", "v")
-    etadata = ncread("./128_postspinup_1year_noslipbc_epsetup/eta.nc", "eta")
+    udata = ncread("./128_postspinup_20days_noslipbc_epsetup/u.nc", "u")
+    vdata = ncread("./128_postspinup_20days_noslipbc_epsetup/v.nc", "v")
+    etadata = ncread("./128_postspinup_20days_noslipbc_epsetup/eta.nc", "eta")
 
     data = zeros(128*127*2, Ndays)
     for j = 2:Ndays+1
@@ -836,7 +808,7 @@ function ignore(result)
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     );
 
@@ -848,16 +820,6 @@ function ignore(result)
         m .= reshape(result.solution[current:(current + sz - 1)], size(m)...)
         current += sz
     end
-
-    # Prog = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(S_nlp.Prog.u,
-    #     S_nlp.Prog.v,
-    #     S_nlp.Prog.η,
-    #     S_nlp.Prog.sst,
-    #     S_nlp)...
-    # )
-    # umodified,vmodified,_,_ = ShallowWaters.add_halo(Prog.u,Prog.v,Prog.η,Prog.sst,S_nlp)
-    # S_nlp.Prog.u = umodified
-    # S_nlp.Prog.v = vmodified
 
     Prog_nlp = ShallowWaters.PrognosticVars{Float64}(ShallowWaters.remove_halo(S_nlp.Prog.u,
         S_nlp.Prog.v,
@@ -912,7 +874,7 @@ function finite_difference(Ndays, xcoord, ycoord)
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_1year_noslipbc_epsetup/",
+        initpath="./128_postspinup_20days_noslipbc_epsetup/",
         init_starti=1
     )
 
@@ -930,9 +892,9 @@ function finite_difference(Ndays, xcoord, ycoord)
 
     data_steps = 225:224:Ndays*225
 
-    udata = ncread("./128_postspinup_1year_noslipbc_epsetup/u.nc", "u")
-    vdata = ncread("./128_postspinup_1year_noslipbc_epsetup/v.nc", "v")
-    etadata = ncread("./128_postspinup_1year_noslipbc_epsetup/eta.nc", "eta")
+    udata = ncread("./128_postspinup_20days_noslipbc_epsetup/u.nc", "u")
+    vdata = ncread("./128_postspinup_20days_noslipbc_epsetup/v.nc", "v")
+    etadata = ncread("./128_postspinup_20days_noslipbc_epsetup/eta.nc", "eta")
 
     data = zeros(128*127*2 + 128*128, Ndays)
     for j = 2:Ndays+1

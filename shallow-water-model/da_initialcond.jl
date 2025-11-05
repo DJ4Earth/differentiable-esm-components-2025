@@ -650,10 +650,11 @@ function NLPModels.grad!(model, param_guess, G)
 
 end
 
-function compute_initcond_newoptimizer()
+function compute_initcond_newoptimizer(Ndays)
 
-    Ndays = 10
+    # this will be the standard deviation of the noise applied to the initial condition
     sigma = 0.1
+
     nlp = InitCondModel{Float64}(Ndays, sigma)
     qn_options = MadNLP.QuasiNewtonOptions(; max_history=100)
     results = madnlp(
@@ -927,8 +928,6 @@ function finite_difference(Ndays, xcoord, ycoord)
         Const(revolve)
     )[2]
     enzyme_deriv = dchkp1.S.Prog.u[xcoord, ycoord]
-    println("Loss when using Enzyme + Checkpointing: $J")
-    println("Enzyme derivative: $enzyme_deriv")
 
     S2 = deepcopy(S0)
     chkp2 = InitCondModel{T, typeof(param_guess)}(meta,

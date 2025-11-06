@@ -2,3 +2,6 @@
 	path = re-entrant-channel-model
 	url = https://github.com/PRONTOLab/GB-25.git
 	branch = jlk9/DJ4Earth-2025-repo
+[submodule "DJUICE"]
+	path = DJUICE
+	url = https://github.com/DJ4Earth/DJUICE.jl.git

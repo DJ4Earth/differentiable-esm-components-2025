@@ -21,3 +21,9 @@ result = compute_initcond_newoptimizer(Ndays)
 ## For section 4 (Application 2: Ocean General Circulation Model in a Re-entrant Channel Configuration)
 
 See the linked submodule `re-entrant-channel-model`. Instructions on how to run and replicate results from the manuscript are in the README there.
+
+## For section 5 (Application 3: Ice Sheet Model)
+
+See the linked submodule `DJUICE`. The two examples are under `DJUICE.jl/examples/Sensitivity_friction_PIG/` and `DJUICE.jl/examples/Sensitivity_BasalMelt_Amundsen/`.
+
+__NOTE__: ISSM is used only for comparisons. Please install [ISSM](https://github.com/ISSMteam/ISSM) and refer to its documentation for installation and usage.

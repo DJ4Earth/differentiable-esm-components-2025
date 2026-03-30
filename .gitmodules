@@ -5,3 +5,6 @@
 [submodule "DJUICE"]
 	path = DJUICE
 	url = https://github.com/DJ4Earth/DJUICE.jl.git
+[submodule "re-entrant-channel-model-oceananigans"]
+	path = re-entrant-channel-model-oceananigans
+	url = https://github.com/DJ4Earth/Channelanigans.git

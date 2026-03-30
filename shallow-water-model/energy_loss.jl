@@ -416,7 +416,8 @@ function run_energy_loss(Ndays)
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="128_10yearspinup_fromrest_noslipbc_epsetup/"
+        initpath="./128_postspinup_1year_noslipbc_epsetup",
+        init_starti=1
     )
     S = ShallowWaters.model_setup(P)
 

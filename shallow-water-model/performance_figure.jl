@@ -35,7 +35,8 @@ function compute_enzyme_times()
             nx=128,
             Ndays=days,
             initial_cond="ncfile",
-            initpath="128_10yearspinup_fromrest_noslipbc_epsetup/"
+            initpath="./128_postspinup_1year_noslipbc_epsetup",
+            init_starti=1
         )
 
         S = ShallowWaters.model_setup(P)
@@ -83,7 +84,8 @@ function compute_cp_times()
             nx=128,
             Ndays=days,
             initial_cond="ncfile",
-            initpath="128_10yearspinup_fromrest_noslipbc_epsetup/"
+            initpath="./128_postspinup_1year_noslipbc_epsetup",
+            init_starti=1
         )
 
         S = ShallowWaters.model_setup(P)
@@ -148,7 +150,8 @@ function make_figure()
         nx=128,
         Ndays=days,
         initial_cond="ncfile",
-        initpath="128_10yearspinup_fromrest_noslipbc_epsetup/"
+        initpath="./128_postspinup_1year_noslipbc_epsetup",
+        init_starti=1
         )
 
         S = ShallowWaters.model_setup(P)

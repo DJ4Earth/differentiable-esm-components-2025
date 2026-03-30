@@ -91,7 +91,8 @@ S = ShallowWaters.model_setup(output=false,
     nx=128,
     Ndays=Ndays,
     initial_cond="ncfile",
-    initpath="128_10yearspinup_fromrest_noslipbc_epsetup/"
+    initpath="./128_postspinup_1year_noslipbc_epsetup",
+    init_starti=1
 )
 
 @unpack Δ,x_u,y_u,Lx,Ly = S.grid

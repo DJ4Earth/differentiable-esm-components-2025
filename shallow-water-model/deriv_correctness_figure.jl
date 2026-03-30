@@ -380,21 +380,31 @@ function finite_difference()
     fig = Figure(fontsize=17, size=(1000,450));
     ax1 = Axis(fig[1,1],
         xlabel="y (km)",
-        ylabel=L"\partial J / \partial u(t_0, 22, y)"
+        # ylabel=L"\partial J / \partial u(t_0, 22, y)"
+        # title="Absolute difference between finite difference and AD derivatives"
     )
     ax2 = Axis(fig[2,1],
         xlabel="x (km)",
-        ylabel=L"\partial J / \partial v(t_0, x, 75)"
+        # ylabel=L"\partial J / \partial v(t_0, x, 75)"
     )
     scale_inv = primal.S.constants.scale_inv
     scale = primal.S.constants.scale
 
-    scatter!(ax1, LinRange(0, 3840, 128), (dstates.u[x_coord-2, :]), label="Enzyme derivative")
-    scatter!(ax1, LinRange(0, 3840, 128), (diffsu) ./ (scale * 128^2), label="Finite difference approximation", marker=:cross)
-    axislegend(ax1, position=:lt)
-    scatter!(ax2, LinRange(0, 3840, 128), (dstates.v[:, y_coord-2]), label="Enzyme derivative")
-    scatter!(ax2, LinRange(0, 3840, 128), (scale_inv .* diffsv) ./ (128^2), label="Finite difference approximation",marker=:cross)
-    axislegend(ax2)
+    p1 = scatter!(ax1, LinRange(0, 3840, 128), sqrt.((dstates.u[x_coord-2,:] .- ((diffsu) ./ (scale * 128^2))).^2), label=L"|\partial J / \partial u(t_0, 22, y) - \text{ Finite difference approx.}|")
+    # scatter!(ax1, LinRange(0, 3840, 128), (diffsu) ./ (scale * 128^2), label="Finite difference approximation", marker=:cross)
+    # Legend(fig[2, 1], ax1, tellwidth = false, orientation = :horizontal)
+    p2 = scatter!(ax2, LinRange(0, 3840, 128), sqrt.((dstates.v[:, y_coord-2] .- (scale_inv .* diffsv) ./ (128^2)).^2), label=L"|\partial J / \partial v(t_0, x, 75) - \text{ Finite difference approx.}|", marker=:cross, color=:goldenrod2)
+    # scatter!(ax2, LinRange(0, 3840, 128), (scale_inv .* diffsv) ./ (128^2), label="Finite difference approximation",marker=:cross)
+    # axislegend(ax2)
+    Legend(
+        fig[3, 1],
+        [p1, p2],
+        [p1.label[], p2.label[]],
+        orientation = :horizontal,
+        tellwidth = false,
+        tellheight = true
+    )
+    rowgap!(fig.layout, 5)
 
     ga = fig[1, 1] = GridLayout()
     gb = fig[2, 1] = GridLayout()

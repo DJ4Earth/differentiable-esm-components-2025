@@ -416,8 +416,7 @@ function run_energy_loss(Ndays)
         nx=128,
         Ndays=Ndays,
         initial_cond="ncfile",
-        initpath="./128_postspinup_20days_noslipbc_epsetup/",
-        init_starti=1
+        initpath="128_10yearspinup_fromrest_noslipbc_epsetup/"
     )
     S = ShallowWaters.model_setup(P)
 
@@ -521,5 +520,76 @@ function finite_difference()
     end
 
     return diffs, enzyme_deriv
+
+end
+
+function for_github()
+
+    # Type precision
+    T = Float32
+
+    Ndays = 30
+
+    # setting up the model like https://mitgcm.readthedocs.io/en/latest/examples/barotropic_gyre/barotropic_gyre.html
+    S = ShallowWaters.model_setup(output=false,
+        L_ratio=1,
+        g=9.81,
+        H=5e3,
+        wind_forcing_x="double_gyre",
+        Lx=1200e3,
+        seasonal_wind_x=false,
+        topography="flat",
+        bc="nonperiodic",
+        bottom_drag="quadratic",
+        tracer_advection=false,
+        tracer_relaxation=false,
+        α=2,
+        nx=128,
+        Ndays=Ndays,
+        initial_cond="rest",
+    )
+
+    snaps = Int(floor(sqrt(S.grid.nt)))
+    revolve = Revolve(
+        snaps;
+        verbose=1,
+        gc=true,
+        write_checkpoints=false,
+        write_checkpoints_filename = "",
+        write_checkpoints_period = 2274
+    )
+
+
+    chkp1 = energy_Chkp{T, T}(deepcopy(S),
+        0.0,
+        1,
+        0.0
+    )
+    dchkp1 = Enzyme.make_zero(chkp1)
+
+    chkp2 = energy_Chkp{T, T}(deepcopy(S),
+        0.0,
+        1,
+        0.0
+    )
+    dchkp2 = Enzyme.make_zero(chkp2)
+
+    J = @time autodiff(
+        set_runtime_activity(Enzyme.ReverseWithPrimal),
+        energy_integration,
+        Active,
+        Duplicated(chkp1, dchkp1),
+        Const(revolve)
+    )[2]
+
+    dchkp2.S.forcing.Fx[30,30] = 1.0
+    deriv, J2 = @time autodiff(
+        set_runtime_activity(Enzyme.ForwardWithPrimal),
+        energy_integration_nocp,
+        Duplicated,
+        Duplicated(chkp2, dchkp2)
+    )
+
+    println("Reverse deriv:", dchkp1.S.forcing.Fx[30,30], "   Forward deriv:", deriv )
 
 end

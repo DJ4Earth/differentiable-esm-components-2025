@@ -20,7 +20,9 @@ result = compute_initcond_newoptimizer(Ndays)
 
 ## For section 4 (Application 2: Ocean General Circulation Model in a Re-entrant Channel Configuration)
 
-See the linked submodule `re-entrant-channel-model`. Instructions on how to run and replicate results from the manuscript are in the README there.
+See the linked submodule `re-entrant-channel-model-oceananigans`. Instructions on how to run and replicate results from the manuscript are in the README there.
+
+The submodule is a tagged release of the repository with DOI 10.5281/zenodo.19339555.
 
 ## For section 5 (Application 3: Ice Sheet Model)
 
